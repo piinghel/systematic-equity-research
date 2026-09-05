@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import argparse
 import itertools
 import math
+from pathlib import Path
 
 import polars as pl
 
@@ -84,3 +86,39 @@ def summarize(frame: pl.DataFrame) -> pl.DataFrame:
         .sort("sleeves", "schedules")
         .collect()
     )
+
+
+def main() -> None:
+    """Recompute each period from the included standalone daily schedules."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=Path(__file__).resolve().parents[1]
+        / "outputs/review/timing/timing_daily.parquet",
+        help="Daily portfolio evidence with period, sleeves and schedules columns.",
+    )
+    arguments = parser.parse_args()
+    saved = pl.scan_parquet(arguments.input)
+    for period in ("development", "later"):
+        standalone = (
+            saved.filter((pl.col("period") == period) & (pl.col("sleeves") == 1))
+            .select(
+                "date",
+                (pl.col("schedules").cast(pl.Int64) - 1).alias("offset"),
+                "gross",
+                "net",
+            )
+            .collect()
+        )
+        print(f"{period}: return, volatility and drawdown in percent; Sharpe unscaled.")
+        print(
+            summarize(mixtures(standalone))
+            .lazy()
+            .select("schedules", "net_cagr", "volatility", "sharpe", "drawdown")
+            .collect()
+        )
+
+
+if __name__ == "__main__":
+    main()

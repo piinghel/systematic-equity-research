@@ -10,11 +10,14 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = ["polars>=1.44.1", "numpy>=2", "scikit-learn>=1.7"]
 
+[project.optional-dependencies]
+examples = ["cvxpy>=1.7"]
+
 [dependency-groups]
 dev = ["pytest>=8.4", "ruff==0.16.0", "ty==0.0.72"]
 
 [tool.setuptools]
-packages = ["portfolio_optimization"]
+packages = ["portfolio_optimization", "examples"]
 py-modules = ["sample_scaled_ridge"]
 
 [tool.ruff]
