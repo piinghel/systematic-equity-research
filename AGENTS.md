@@ -1,11 +1,10 @@
 # Research companion maintenance
 
-Keep this repository independently runnable from its included portfolio-level
-inputs. Preserve source provenance and exact numerical definitions. Add only
-redistributable inputs and dependencies; exclude machine-specific paths and raw runs.
-Use Polars for tabular work, pure calculations where practical, and explicit
-paths for I/O. Run the four README checks and regenerate any affected figures.
-The blog owns article prose and the timing chart; avoid duplicate renderers.
-Keep examples short and explicit about their scope. Do not turn a one-rebalance
-demonstration into a second execution engine. Public documentation should explain
-the available method, commands and inputs, not internal projects or unpublished work.
+This repository owns the sample-scaled Ridge estimator, its example and tests,
+and the index of related studies. Portfolio optimization and tranching have their
+own repositories; do not restore duplicate source or evidence here.
+Keep examples short and explicit about what they demonstrate. Add only
+redistributable dependencies and exclude machine-specific paths and raw runs.
+Public documentation should explain available methods and commands, not internal
+projects or unpublished work. Preserve the penalty convention and run the four
+README checks before committing. The blog owns article prose and regression figures.
