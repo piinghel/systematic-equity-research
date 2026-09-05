@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -247,17 +248,21 @@ def build_svg(beta: pl.DataFrame, *, palette: Palette) -> str:
 
 
 def build_risk_calibration_figure(
-    *, beta_path: Path = BETA_PATH, figure_root: Path = FIGURE_ROOT
+    *,
+    beta_path: Path = BETA_PATH,
+    figure_root: Path = FIGURE_ROOT,
+    review_root: Path = REVIEW_ROOT,
 ) -> dict[str, Path]:
     """Persist light/dark SVGs, caption, and one authoritative manifest."""
 
     beta = monthly_mean_beta(pl.scan_csv(beta_path, try_parse_dates=True))
+    review_root.mkdir(parents=True, exist_ok=True)
     figure_root.mkdir(parents=True, exist_ok=True)
     paths = {
         "light": figure_root / "risk-calibration-and-beta.svg",
         "dark": figure_root / "risk-calibration-and-beta_dark.svg",
-        "caption": REVIEW_ROOT / "risk_calibration_figure_caption.md",
-        "manifest": REVIEW_ROOT / "risk_calibration_figure_manifest.json",
+        "caption": review_root / "risk_calibration_figure_caption.md",
+        "manifest": review_root / "risk_calibration_figure_manifest.json",
     }
     paths["light"].write_text(build_svg(beta, palette=LIGHT), encoding="utf-8")
     paths["dark"].write_text(build_svg(beta, palette=DARK), encoding="utf-8")
@@ -279,10 +284,10 @@ def build_risk_calibration_figure(
                     "How large and persistent is realised market beta after "
                     "portfolio formation?"
                 ),
-                "data": str(beta_path.relative_to(PROJECT_ROOT)),
+                "data": os.path.relpath(beta_path, PROJECT_ROOT),
                 "files": [
-                    str(paths["light"].relative_to(PROJECT_ROOT)),
-                    str(paths["dark"].relative_to(PROJECT_ROOT)),
+                    os.path.relpath(paths["light"], PROJECT_ROOT),
+                    os.path.relpath(paths["dark"], PROJECT_ROOT),
                 ],
                 "observation": (
                     "Through 2021, all three rules carry persistent realised "

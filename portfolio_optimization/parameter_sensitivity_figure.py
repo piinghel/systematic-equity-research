@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -300,15 +301,19 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
 
 
 def build_parameter_sensitivity_figure(
-    *, summary_path: Path = SUMMARY_PATH, figure_root: Path = FIGURE_ROOT
+    *,
+    summary_path: Path = SUMMARY_PATH,
+    figure_root: Path = FIGURE_ROOT,
+    review_root: Path = REVIEW_ROOT,
 ) -> dict[str, Path]:
     frame = pl.scan_csv(summary_path).sort("family", "value_order").collect()
+    review_root.mkdir(parents=True, exist_ok=True)
     figure_root.mkdir(parents=True, exist_ok=True)
     paths = {
         "light": figure_root / "parameter-sensitivity.svg",
         "dark": figure_root / "parameter-sensitivity_dark.svg",
-        "caption": REVIEW_ROOT / "parameter_sensitivity_figure_caption.md",
-        "manifest": REVIEW_ROOT / "parameter_sensitivity_figure_manifest.json",
+        "caption": review_root / "parameter_sensitivity_figure_caption.md",
+        "manifest": review_root / "parameter_sensitivity_figure_manifest.json",
     }
     paths["light"].write_text(build_svg(frame, palette=LIGHT), encoding="utf-8")
     paths["dark"].write_text(build_svg(frame, palette=DARK), encoding="utf-8")
@@ -329,10 +334,10 @@ def build_parameter_sensitivity_figure(
                     "Are the trade coefficient and holding cutoff supported by "
                     "a stable development-period compromise?"
                 ),
-                "data": str(summary_path.relative_to(PROJECT_ROOT)),
+                "data": os.path.relpath(summary_path, PROJECT_ROOT),
                 "files": [
-                    str(paths["light"].relative_to(PROJECT_ROOT)),
-                    str(paths["dark"].relative_to(PROJECT_ROOT)),
+                    os.path.relpath(paths["light"], PROJECT_ROOT),
+                    os.path.relpath(paths["dark"], PROJECT_ROOT),
                 ],
                 "observation": (
                     "Trade coefficients from 1 through 3 have similar net Sharpe "

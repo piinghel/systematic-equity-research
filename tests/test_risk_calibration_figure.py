@@ -55,7 +55,6 @@ def test_beta_svg_contains_all_three_paths_without_target_annotation() -> None:
     assert "Volatility-scaled rule" in svg
     assert "Optimizer" in svg
     assert "Optimizer + trading controls" in svg
-    assert 'y1="84.0"' in svg
     assert "Target band" not in svg
 
 

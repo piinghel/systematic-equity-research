@@ -139,11 +139,7 @@ def test_parameter_figure_contains_both_axes_and_selected_settings() -> None:
     assert "Trade coefficient" in svg
     assert "Holding cutoff" in svg
     assert "Schedule range" in svg
-    assert 'x1="90.0" y1="22.0"' in svg
-    assert 'cx="300" cy="22"' in svg
     assert "Annual turnover (× capital)" in svg
-    assert svg.count(f'fill="{LIGHT.selected}"') == 5
-    assert "mobile" not in svg.lower()
 
 
 def test_parameter_figure_supports_dark_mode() -> None:

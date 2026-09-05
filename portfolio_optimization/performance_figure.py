@@ -6,7 +6,6 @@ import argparse
 import hashlib
 import json
 import math
-import os
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
@@ -17,41 +16,17 @@ from portfolio_optimization.svg_primitives import svg_line as _line
 from portfolio_optimization.svg_primitives import svg_text as _text
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-SOURCE_PROJECT_ROOT = Path(
-    os.environ.get("PORTFOLIO_OPTIMIZATION_SOURCE_ROOT", PROJECT_ROOT)
-)
-FULL_ROOT = SOURCE_PROJECT_ROOT / "outputs" / "full"
 REVIEW_ROOT = PROJECT_ROOT / "outputs" / "review"
 FIGURE_ROOT = REVIEW_ROOT / "figures"
 COMMON_START = date(1998, 9, 22)
 DEVELOPMENT_END = date(2021, 12, 31)
-OFFSETS = ("o0", "o1", "o2")
 WIDTH = 1200
 HEIGHT = 780
 WEALTH_AXIS_MAX = 16.0
 DRAWDOWN_AXIS_MIN = -22.0
 
 
-@dataclass(frozen=True)
-class Arm:
-    code: str
-    label: str
-    backtest: Path
-
-
-ARMS = (
-    Arm(
-        "b1",
-        "Vol-scaled rule",
-        FULL_ROOT / "b1_ranked_volscale" / "backtest",
-    ),
-    Arm("b2", "Optimizer", FULL_ROOT / "b2_memoryless_mvo" / "backtest"),
-    Arm(
-        "b3",
-        "Optimizer + trading controls",
-        FULL_ROOT / "b3_state_aware_mvo" / "backtest",
-    ),
-)
+ALLOCATORS = ("b1", "b2", "b3")
 
 
 @dataclass(frozen=True)
@@ -85,80 +60,8 @@ DARK = Palette(
 )
 
 
-def matched_performance_path() -> pl.DataFrame:
-    """Average the three offset wealth paths after every offset is live."""
-
-    frames: list[pl.LazyFrame] = []
-    for arm in ARMS:
-        offsets = [
-            pl.scan_csv(
-                arm.backtest / "calendars" / offset / "returns.csv",
-                try_parse_dates=True,
-            )
-            .filter(pl.col("date").is_between(COMMON_START, DEVELOPMENT_END))
-            .select(
-                "date",
-                pl.lit(offset).alias("offset"),
-                pl.col("long_short_net").alias("net_return"),
-            )
-            .sort("date")
-            .with_columns(
-                (pl.col("net_return") + 1.0).cum_prod().alias("offset_wealth")
-            )
-            for offset in OFFSETS
-        ]
-        offset_data = pl.concat(offsets).collect()
-        if (
-            offset_data.select("offset", "date").n_unique() != offset_data.height
-            or offset_data.group_by("date")
-            .len()
-            .filter(pl.col("len") != len(OFFSETS))
-            .height
-        ):
-            raise ValueError("Raw schedules do not share one matched calendar")
-        if offset_data.filter(
-            pl.col("date").is_null()
-            | pl.col("net_return").is_null()
-            | ~pl.col("net_return").is_finite()
-            | (pl.col("net_return") <= -1)
-        ).height:
-            raise ValueError("Raw schedules contain invalid financial values")
-        frames.append(
-            offset_data.lazy()
-            .group_by("date")
-            .agg(
-                pl.col("net_return").mean().alias("first_day_return"),
-                pl.col("offset_wealth").mean().alias("wealth"),
-                pl.col("offset").n_unique().alias("live_offsets"),
-            )
-            .filter(pl.col("live_offsets") == len(OFFSETS))
-            .sort("date")
-            .with_columns(
-                (pl.col("wealth") / pl.col("wealth").shift(1) - 1.0)
-                .fill_null(pl.col("first_day_return"))
-                .alias("net_return")
-            )
-            .with_columns(pl.lit(arm.code).alias("allocator"))
-            .select("allocator", "date", "net_return", "wealth")
-        )
-    return (
-        pl.concat(frames)
-        .sort("allocator", "date")
-        .with_columns(
-            (
-                pl.col("wealth")
-                / pl.col("wealth").cum_max().over("allocator").clip(lower_bound=1)
-                - 1.0
-            )
-            .mul(100.0)
-            .alias("drawdown_pct")
-        )
-        .collect()
-    )
-
-
 def _validate(frame: pl.DataFrame) -> None:
-    expected_allocators = {arm.code for arm in ARMS}
+    expected_allocators = set(ALLOCATORS)
     if set(frame.get_column("allocator")) != expected_allocators:
         raise ValueError("performance path requires the declared B1/B2/B3 allocators")
     counts = frame.group_by("allocator").agg(
@@ -167,7 +70,7 @@ def _validate(frame: pl.DataFrame) -> None:
         pl.col("date").max().alias("end"),
     )
     if (
-        counts.height != len(ARMS)
+        counts.height != len(ALLOCATORS)
         or counts.get_column("rows").n_unique() != 1
         or counts.get_column("start").n_unique() != 1
         or counts.get_column("end").n_unique() != 1
@@ -177,7 +80,7 @@ def _validate(frame: pl.DataFrame) -> None:
         frame.select("allocator", "date").n_unique() != frame.height
         or frame.group_by("date")
         .agg(pl.col("allocator").n_unique().alias("allocators"))
-        .filter(pl.col("allocators") != len(ARMS))
+        .filter(pl.col("allocators") != len(ALLOCATORS))
         .height
     ):
         raise ValueError("performance paths do not share one matched calendar")
@@ -238,6 +141,7 @@ def _area_path(
 def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
     """Render daily matched wealth and drawdown paths as one article figure."""
 
+    _validate(frame)
     left = 90.0
     right = 1080.0
     wealth_top = 75.0
@@ -250,6 +154,8 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
         raise TypeError("performance path lacks valid date boundaries")
     start = start_value
     end = end_value
+    if start >= end:
+        raise ValueError("performance display requires at least two distinct dates")
     total_days = (end - start).days
 
     def x_position(value: date) -> float:
@@ -369,22 +275,18 @@ def build_performance_figure(
     *,
     review_root: Path = REVIEW_ROOT,
     figure_root: Path = FIGURE_ROOT,
-    daily_source: Path | None = None,
+    daily_source: Path = REVIEW_ROOT / "performance_path_daily.parquet",
 ) -> dict[str, Path]:
     """Persist daily evidence, light/dark SVGs, caption, and manifest."""
 
     frame = (
-        matched_performance_path()
-        if daily_source is None
-        else pl.scan_parquet(daily_source)
+        pl.scan_parquet(daily_source)
         .filter(pl.col("date").is_between(COMMON_START, DEVELOPMENT_END))
         .sort("allocator", "date")
         .collect()
     )
     _validate(frame)
-    source_hash = (
-        hashlib.sha256(daily_source.read_bytes()).hexdigest() if daily_source else None
-    )
+    source_hash = hashlib.sha256(daily_source.read_bytes()).hexdigest()
     review_root.mkdir(parents=True, exist_ok=True)
     figure_root.mkdir(parents=True, exist_ok=True)
     paths = {
@@ -444,6 +346,7 @@ def main() -> None:
     parser.add_argument(
         "--daily-source",
         type=Path,
+        default=REVIEW_ROOT / "performance_path_daily.parquet",
         help="Regenerate from retained daily evidence without raw backtest trees.",
     )
     arguments = parser.parse_args()

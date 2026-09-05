@@ -18,8 +18,7 @@ Python 3.12 or later and [uv](https://docs.astral.sh/uv/) are required.
 
 ```bash
 uv sync --locked
-uv run python -m portfolio_optimization.performance_figure \
-  --daily-source outputs/review/performance_path_daily.parquet
+uv run python -m portfolio_optimization.performance_figure
 uv run python -m portfolio_optimization.parameter_sensitivity_figure
 uv run python -m portfolio_optimization.rho_ladder_figure
 uv run python -m portfolio_optimization.risk_calibration_figure
@@ -27,6 +26,9 @@ uv run python -m portfolio_optimization.risk_calibration_figure
 
 The commands write light/dark SVGs to `outputs/review/figures/`. Their inputs
 are included, so these four figures can be rebuilt from a clean checkout.
+The performance renderer defaults to the saved portfolio path; `--daily-source`
+selects another reviewed Parquet input. Raw backtest extraction stays in the
+private research project.
 
 To recompute the timing table from the three standalone daily portfolios:
 
@@ -66,8 +68,10 @@ the author's shared research packages. The matched OLS–Ridge return and
 coefficient bundle remains missing; the estimator here exposes its penalty
 convention. The existing article preserves the reported empirical comparison.
 
-`SOURCE_FILES.json` records hashes of the included research inputs and original
-modules. Generated figures and caches are ignored. The private research project
+`SOURCE_FILES.json` records hashes of the included research inputs and the
+original imported modules at publication. Code can evolve independently of those
+source snapshots; the included input hashes remain unchanged. Generated figures
+and caches are ignored. The private research project
 owns the original backtest runs; update public inputs only after checking their
 periods and definitions against the article.
 

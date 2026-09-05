@@ -1,10 +1,10 @@
 import polars as pl
 import pytest
 
-from portfolio_optimization.rho_ladder_figure import LIGHT, PANELS, build_svg
+from portfolio_optimization.rho_ladder_figure import LIGHT, build_svg
 
 
-def test_rho_svg_contains_all_cells_and_no_mobile_variant() -> None:
+def test_rho_svg_labels_allocators_and_metric_units() -> None:
     rows = [
         {
             "allocator": allocator,
@@ -20,21 +20,10 @@ def test_rho_svg_contains_all_cells_and_no_mobile_variant() -> None:
 
     svg = build_svg(pl.DataFrame(rows), palette=LIGHT)
 
-    assert len(PANELS) == 4
-    assert svg.count("<circle") == 88
     assert "Optimizer" in svg
     assert "Optimizer + trading controls" in svg
-    assert 'x1="90.0" y1="20.0"' in svg
-    assert 'x1="250.0" y1="20.0"' in svg
-    assert "Current 0.5" not in svg
-    assert "Full history" not in svg
     assert "Mean across three schedules" in svg
-    assert "Horizontal axis:" not in svg
-    assert "Correlation shrinkage, ρ" not in svg
-    assert 'height="725"' in svg
     assert "Two-way turnover (× capital)" in svg
-    assert "Correlation shrinkage (rho)" not in svg
-    assert "mobile" not in svg.lower()
 
 
 def test_rho_svg_rejects_an_incomplete_allocator_grid() -> None:

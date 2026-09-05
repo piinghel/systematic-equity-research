@@ -1,14 +1,9 @@
-"""Audit and visualize fixed-notional mixtures of three saved rebalance schedules."""
+"""Calculate fixed-notional mixtures of three saved rebalance schedules."""
 
 from __future__ import annotations
 
-import argparse
-import datetime as dt
-import hashlib
 import itertools
-import json
 import math
-from pathlib import Path
 
 import polars as pl
 
@@ -31,42 +26,6 @@ def validate_schedules(frame: pl.DataFrame) -> None:
         raise ValueError("Schedules must have exactly matched dates")
 
 
-def load_schedules(calendar_root: Path) -> pl.DataFrame:
-    """Require identical dates, finite returns, and one record per schedule-date."""
-    frames = []
-    for offset in range(3):
-        frame = (
-            pl.scan_csv(
-                calendar_root / f"o{offset}" / "returns.csv", try_parse_dates=True
-            )
-            .filter((pl.col("date") >= dt.date(1998, 9, 22)) | pl.col("date").is_null())
-            .select(
-                "date",
-                pl.lit(offset).alias("offset"),
-                pl.col("long_short_gross").alias("gross"),
-                pl.col("long_short_net").alias("net"),
-            )
-            .sort("date")
-            .collect()
-        )
-        if frame.is_empty() or frame["date"].n_unique() != frame.height:
-            raise ValueError("Empty or duplicate schedule dates")
-        if frame.filter(
-            pl.col("date").is_null()
-            | pl.any_horizontal(
-                pl.col(c).is_null() | ~pl.col(c).is_finite() | (pl.col(c) <= -1)
-                for c in ("gross", "net")
-            )
-        ).height:
-            raise ValueError("Invalid return or date")
-        if frames and not frame["date"].equals(frames[0]["date"]):
-            raise ValueError("Schedules must have exactly matched dates")
-        frames.append(frame)
-    combined = pl.concat(frames)
-    validate_schedules(combined)
-    return combined
-
-
 def mixtures(frame: pl.DataFrame) -> pl.DataFrame:
     """Allocate equal fixed notional to every member of each non-empty subset."""
     validate_schedules(frame)
@@ -74,7 +33,8 @@ def mixtures(frame: pl.DataFrame) -> pl.DataFrame:
     for count in (1, 2, 3):
         for members in itertools.combinations(range(3), count):
             pieces.append(
-                frame.filter(pl.col("offset").is_in(members))
+                frame.lazy()
+                .filter(pl.col("offset").is_in(members))
                 .group_by("date")
                 .agg(pl.col("gross").mean(), pl.col("net").mean())
                 .sort("date")
@@ -83,13 +43,15 @@ def mixtures(frame: pl.DataFrame) -> pl.DataFrame:
                     pl.lit(count).alias("sleeves"),
                 )
             )
-    return pl.concat(pieces)
+    return pl.concat(pieces).collect()
 
 
 def summarize(frame: pl.DataFrame) -> pl.DataFrame:
     """Use 252 sessions, zero cash rate, and an initial unit wealth high-water mark."""
-    ordered = frame.sort("schedules", "date").with_columns(
-        (1 + pl.col("net")).cum_prod().over("schedules").alias("wealth")
+    ordered = (
+        frame.lazy()
+        .sort("schedules", "date")
+        .with_columns((1 + pl.col("net")).cum_prod().over("schedules").alias("wealth"))
     )
     return (
         ordered.group_by("schedules", "sleeves")
@@ -120,59 +82,5 @@ def summarize(frame: pl.DataFrame) -> pl.DataFrame:
             ),
         )
         .sort("sleeves", "schedules")
+        .collect()
     )
-
-
-def run(calendar_root: Path, output: Path) -> None:
-    frame = load_schedules(calendar_root)
-    all_mixtures = mixtures(frame)
-    periods = []
-    for period, start, end in (
-        ("development", dt.date(1998, 9, 22), dt.date(2021, 12, 31)),
-        ("later", dt.date(2022, 1, 3), dt.date(2026, 5, 27)),
-    ):
-        periods.append(
-            all_mixtures.filter(pl.col("date").is_between(start, end)).with_columns(
-                pl.lit(period).alias("period")
-            )
-        )
-    daily = pl.concat(periods)
-    metrics = pl.concat(
-        [
-            summarize(p).with_columns(pl.lit(p["period"][0]).alias("period"))
-            for p in periods
-        ]
-    )
-    output.mkdir(parents=True, exist_ok=True)
-    daily.write_parquet(output / "timing_daily.parquet")
-    metrics.write_csv(output / "timing_metrics.csv")
-    manifest = {
-        "rule": "Frozen B3: Ridge ranking, constrained optimizer with trading controls",
-        "aggregation": "Equal fixed-notional mixture of saved daily returns; no new forecasts or trades",
-        "annualization": 252,
-        "cash_rate": 0,
-        "costs": "Existing 5 bp proportional costs, averaged without cross-sleeve netting",
-        "sources": {
-            f"o{i}/returns.csv": hashlib.sha256(
-                (calendar_root / f"o{i}/returns.csv").read_bytes()
-            ).hexdigest()
-            for i in range(3)
-        },
-        "later_period": "Reused history, not an untouched holdout",
-    }
-    (output / "timing_manifest.json").write_text(
-        json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
-    )
-    print(metrics)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--calendar-root", required=True, type=Path)
-    parser.add_argument("--output", required=True, type=Path)
-    args = parser.parse_args()
-    run(args.calendar_root, args.output)
-
-
-if __name__ == "__main__":
-    main()
