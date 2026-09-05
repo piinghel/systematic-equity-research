@@ -46,8 +46,8 @@ LIGHT = Palette(
     muted="#667085",
     grid="#D9DEE8",
     b1="#9AA4B2",
-    b2="#2563EB",
-    b3="#D97706",
+    b2="#4F7396",
+    b3="#B98556",
 )
 DARK = Palette(
     text="#F3F4F6",
@@ -55,8 +55,8 @@ DARK = Palette(
     muted="#AAB2C0",
     grid="#3B4250",
     b1="#AAB2C0",
-    b2="#60A5FA",
-    b3="#FBBF24",
+    b2="#78A0C4",
+    b3="#C79261",
 )
 
 
@@ -138,16 +138,17 @@ def _area_path(
     )
 
 
-def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
+def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> str:
     """Render daily matched wealth and drawdown paths as one article figure."""
 
     _validate(frame)
-    left = 90.0
-    right = 1080.0
-    wealth_top = 75.0
-    wealth_bottom = 445.0
-    drawdown_top = 525.0
-    drawdown_bottom = 735.0
+    width, height = (480, 680) if mobile else (WIDTH, HEIGHT)
+    left = 55.0 if mobile else 90.0
+    right = 455.0 if mobile else 1140.0
+    wealth_top = 165.0 if mobile else 90.0
+    wealth_bottom = 410.0 if mobile else 445.0
+    drawdown_top = 485.0 if mobile else 525.0
+    drawdown_bottom = 640.0 if mobile else 735.0
     start_value = frame.get_column("date").min()
     end_value = frame.get_column("date").max()
     if not isinstance(start_value, date) or not isinstance(end_value, date):
@@ -173,28 +174,66 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
 
     elements = [
         (
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" '
-            f'height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}">'
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+            f'height="{height}" viewBox="0 0 {width} {height}">'
         ),
-        (
-            '<g font-family="Inter, ui-sans-serif, -apple-system, '
-            'BlinkMacSystemFont, Segoe UI, sans-serif">'
+        ('<g font-family="DejaVu Sans, sans-serif">'),
+        _line(left, 24, left + 30, 24, stroke=palette.b1, stroke_width="3"),
+        _text(left + 40, 29, "Volatility-scaled", fill=palette.text, size=18),
+        _line(
+            left if mobile else 340,
+            52 if mobile else 24,
+            left + 30 if mobile else 370,
+            52 if mobile else 24,
+            stroke=palette.b2,
+            stroke_width="3",
         ),
-        _line(90, 24, 120, 24, stroke=palette.b1, stroke_width="3"),
-        _text(130, 29, "Vol-scaled", fill=palette.text, size=18, weight=600),
-        _line(250, 24, 280, 24, stroke=palette.b2, stroke_width="3"),
-        _text(290, 29, "Optimizer", fill=palette.text, size=18, weight=600),
-        _line(385, 24, 415, 24, stroke=palette.b3, stroke_width="3"),
-        _text(425, 29, "Trading controls", fill=palette.text, size=18, weight=600),
+        _text(
+            left + 40 if mobile else 380,
+            57 if mobile else 29,
+            "Optimizer",
+            fill=palette.text,
+            size=18,
+        ),
+        _line(
+            left if mobile else 550,
+            80 if mobile else 24,
+            left + 30 if mobile else 580,
+            80 if mobile else 24,
+            stroke=palette.b3,
+            stroke_width="3",
+        ),
+        _text(
+            left + 40 if mobile else 590,
+            85 if mobile else 29,
+            "Optimizer + trading controls",
+            fill=palette.text,
+            size=18,
+        ),
+        _text(
+            left if mobile else right,
+            118 if mobile else 65,
+            "Development · 1998–2021",
+            fill=palette.muted,
+            size=18,
+            anchor="start" if mobile else "end",
+        ),
         _text(
             left,
-            58,
-            "Growth of $1 (log scale)",
+            wealth_top - 15,
+            "Net growth index (log scale)",
             fill=palette.title,
-            size=22,
-            weight=650,
+            size=20,
+            weight=600,
         ),
-        _text(left, 510, "Drawdown (%)", fill=palette.title, size=22, weight=650),
+        _text(
+            left,
+            drawdown_top - 15,
+            "Drawdown (%)",
+            fill=palette.title,
+            size=20,
+            weight=600,
+        ),
     ]
     for tick in (1.0, 2.0, 4.0, 8.0, 16.0):
         y = wealth_y(tick)
@@ -226,12 +265,12 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
                 ),
             ]
         )
-    for year in (2000, 2004, 2008, 2012, 2016, 2020):
+    for year in (2000, 2010, 2020) if mobile else (2000, 2004, 2008, 2012, 2016, 2020):
         x = x_position(date(year, 1, 1))
         elements.append(
             _text(
                 x,
-                HEIGHT - 17,
+                height - 17,
                 str(year),
                 fill=palette.muted,
                 size=18,
@@ -257,7 +296,7 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
                     drawdown_points,
                     baseline=drawdown_y(0.0),
                     color=colors[allocator],
-                    opacity=0.04 if allocator == "b1" else 0.055,
+                    opacity=0.06 if allocator == "b1" else 0.0,
                 ),
                 _path(
                     drawdown_points,
@@ -293,19 +332,26 @@ def build_performance_figure(
         "data": review_root / "performance_path_daily.parquet",
         "light": figure_root / "performance-and-drawdowns.svg",
         "dark": figure_root / "performance-and-drawdowns_dark.svg",
+        "mobile_light": figure_root / "performance-and-drawdowns_mobile.svg",
+        "mobile_dark": figure_root / "performance-and-drawdowns_mobile_dark.svg",
         "caption": review_root / "performance_figure_caption.md",
         "manifest": review_root / "performance_figure_manifest.json",
     }
     frame.write_parquet(paths["data"], compression="zstd")
     paths["light"].write_text(build_svg(frame, palette=LIGHT), encoding="utf-8")
     paths["dark"].write_text(build_svg(frame, palette=DARK), encoding="utf-8")
+    for theme, palette in (("light", LIGHT), ("dark", DARK)):
+        paths[f"mobile_{theme}"].write_text(
+            build_svg(frame, palette=palette, mobile=True), encoding="utf-8"
+        )
     caption = (
         "**Figure 1. Net performance and drawdowns through time.** Daily net "
         "returns charge 5 bp per side. Each rebalance-schedule path is "
         "compounded separately, then the three wealth levels are averaged once "
         "all offsets are live, from 22 September 1998 "
         "through 31 December 2021. This path shows timing and compounding; Table 1 "
-        "reports the mean of the three schedule-level metrics."
+        "reports the mean of the three schedule-level metrics. The strategies "
+        "retain different volatilities; cumulative growth is not a risk-matched comparison."
     )
     paths["caption"].write_text(caption + "\n", encoding="utf-8")
     manifest = {
@@ -319,7 +365,7 @@ def build_performance_figure(
             str(paths[key].relative_to(PROJECT_ROOT))
             if paths[key].is_relative_to(PROJECT_ROOT)
             else str(paths[key])
-            for key in ("light", "dark")
+            for key in ("light", "dark", "mobile_light", "mobile_dark")
         ],
         "observation": (
             "The optimizer finishes above volatility scaling. Adding trading "
@@ -333,7 +379,7 @@ def build_performance_figure(
             "The path averages three separately compounded schedule wealth levels; "
             "the headline table averages metrics calculated within each schedule."
         ),
-        "mobile_specific_asset": False,
+        "mobile_specific_asset": True,
     }
     paths["manifest"].write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"

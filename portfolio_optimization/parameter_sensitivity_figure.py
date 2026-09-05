@@ -34,14 +34,14 @@ LIGHT = Palette(
     muted="#667085",
     grid="#D9DEE8",
     line="#64748B",
-    selected="#D97706",
+    selected="#B98556",
 )
 DARK = Palette(
     text="#F3F4F6",
     muted="#AAB2C0",
     grid="#3B4250",
     line="#AAB2C0",
-    selected="#FBBF24",
+    selected="#C79261",
 )
 
 
@@ -161,10 +161,10 @@ def _panel(
     elements: list[str] = []
     if show_column_title:
         elements.append(
-            _text(x0 + 8, y0 + 23, column.title, fill=palette.text, size=24, weight=650)
+            _text(x0 + 8, y0 + 23, column.title, fill=palette.text, size=20, weight=600)
         )
     elements.append(
-        _text(x0 + 8, top - 8, row.title, fill=palette.text, size=19, weight=650)
+        _text(x0 + 8, top - 8, row.title, fill=palette.text, size=18, weight=400)
     )
     for tick in row.ticks:
         y = y_position(tick)
@@ -254,12 +254,13 @@ def _panel(
     return elements
 
 
-def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
+def build_svg(frame: pl.DataFrame, *, palette: Palette, mobile: bool = False) -> str:
     _validate(frame)
+    width, height = (480, 1240) if mobile else (WIDTH, 660)
     elements = [
         (
-            f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" '
-            f'height="{HEIGHT}" viewBox="0 0 {WIDTH} {HEIGHT}" role="img" '
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" '
+            f'height="{height}" viewBox="0 0 {width} {height}" role="img" '
             'aria-labelledby="title desc">'
         ),
         '<title id="title">Sensitivity of the optimizer trading controls</title>',
@@ -268,13 +269,28 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
             "coefficients and five holding-rank cutoffs during development. "
             "Thin vertical lines show the range across three rebalance schedules.</desc>"
         ),
-        '<g font-family="Inter, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">',
-        _line(90, 22, 126, 22, stroke=palette.line, stroke_width="2"),
-        _text(137, 27, "Schedule range", fill=palette.muted, size=18),
-        f'<circle cx="300" cy="22" r="6" fill="{palette.selected}"/>',
-        _text(315, 27, "Chosen setting", fill=palette.muted, size=18),
+        '<g font-family="DejaVu Sans, sans-serif">',
+        _text(
+            24 if mobile else 53,
+            24,
+            "Points: means · whiskers: schedule range",
+            fill=palette.muted,
+            size=18,
+        ),
+        f'<circle cx="{32 if mobile else 540}" cy="{48 if mobile else 19}" r="6" fill="{palette.selected}"/>',
+        _text(
+            48 if mobile else 555,
+            53 if mobile else 24,
+            "Chosen setting",
+            fill=palette.muted,
+            size=18,
+        ),
     ]
-    positions = ((45, 40), (630, 40), (45, 365), (630, 365))
+    positions = (
+        ((8, 72), (8, 650), (8, 357), (8, 935))
+        if mobile
+        else ((45, 40), (630, 40), (45, 335), (630, 335))
+    )
     panels = (
         (ROWS[0], COLUMNS[0]),
         (ROWS[0], COLUMNS[1]),
@@ -290,8 +306,8 @@ def build_svg(frame: pl.DataFrame, *, palette: Palette) -> str:
                 row=row,
                 x0=x0,
                 y0=y0,
-                width=540,
-                height=300,
+                width=460 if mobile else 540,
+                height=285 if mobile else 300,
                 palette=palette,
                 show_column_title=index < 2,
             )
@@ -312,18 +328,23 @@ def build_parameter_sensitivity_figure(
     paths = {
         "light": figure_root / "parameter-sensitivity.svg",
         "dark": figure_root / "parameter-sensitivity_dark.svg",
+        "mobile_light": figure_root / "parameter-sensitivity_mobile.svg",
+        "mobile_dark": figure_root / "parameter-sensitivity_mobile_dark.svg",
         "caption": review_root / "parameter_sensitivity_figure_caption.md",
         "manifest": review_root / "parameter_sensitivity_figure_manifest.json",
     }
     paths["light"].write_text(build_svg(frame, palette=LIGHT), encoding="utf-8")
     paths["dark"].write_text(build_svg(frame, palette=DARK), encoding="utf-8")
+    for theme, palette in (("light", LIGHT), ("dark", DARK)):
+        paths[f"mobile_{theme}"].write_text(
+            build_svg(frame, palette=palette, mobile=True), encoding="utf-8"
+        )
     paths["caption"].write_text(
         "**Figure 2. Trading-control sensitivity.** Net "
-        "Sharpe and annualized two-way turnover through 2021. The left "
-        "column varies the trade coefficient while holding the rank cutoff at "
-        "175. The right varies the cutoff while holding the coefficient at "
-        "0.00025. Points are means and thin lines span the three rebalance "
-        "schedules.\n",
+        "Sharpe and annualized two-way turnover through 2021. The trade-coefficient "
+        "group holds the rank cutoff at 175; the rank-cutoff group holds the "
+        "coefficient at 0.00025. Points are schedule means; whiskers span the "
+        "three rebalance schedules, not confidence intervals.\n",
         encoding="utf-8",
     )
     paths["manifest"].write_text(
@@ -336,8 +357,8 @@ def build_parameter_sensitivity_figure(
                 ),
                 "data": os.path.relpath(summary_path, PROJECT_ROOT),
                 "files": [
-                    os.path.relpath(paths["light"], PROJECT_ROOT),
-                    os.path.relpath(paths["dark"], PROJECT_ROOT),
+                    os.path.relpath(paths[key], PROJECT_ROOT)
+                    for key in ("light", "dark", "mobile_light", "mobile_dark")
                 ],
                 "observation": (
                     "Trade coefficients from 1 through 3 have similar net Sharpe "
@@ -350,7 +371,7 @@ def build_parameter_sensitivity_figure(
                     "optima."
                 ),
                 "limitation": ("Each axis varies one choice at a time."),
-                "mobile_specific_asset": False,
+                "mobile_specific_asset": True,
             },
             indent=2,
         )

@@ -51,6 +51,7 @@ def test_figures_accept_external_inputs_and_output_directories(
     manifest = json.loads(paths["manifest"].read_text())
     assert (PROJECT_ROOT / manifest["data"]).resolve().is_file()
     assert {(PROJECT_ROOT / path).resolve() for path in manifest["files"]} == {
-        paths["light"].resolve(),
-        paths["dark"].resolve(),
+        path.resolve() for path in paths.values() if path.suffix == ".svg"
     }
+    if builder in (build_performance_figure, build_parameter_sensitivity_figure):
+        assert {"mobile_light", "mobile_dark"} <= paths.keys()

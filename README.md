@@ -26,6 +26,9 @@ uv run python -m portfolio_optimization.risk_calibration_figure
 
 The commands write light/dark SVGs to `outputs/review/figures/`. Their inputs
 are included, so these four figures can be rebuilt from a clean checkout.
+The performance and parameter-sensitivity commands also write phone-layout
+light/dark SVGs; their manifests list all four variants. These display changes
+do not recompute portfolios or normalize their different risk levels.
 The performance renderer defaults to the saved portfolio path; `--daily-source`
 selects another reviewed Parquet input. Raw backtest extraction stays in the
 private research project.
