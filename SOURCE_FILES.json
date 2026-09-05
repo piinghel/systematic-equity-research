@@ -1,0 +1,29 @@
+{
+  "source_project": "portfolio-optimization",
+  "baseline_commit": "5ed6a51",
+  "review_date": "2026-09-05",
+  "scope": "Portfolio-level aggregates and analysis modules; reviewed September article changes included.",
+  "sha256": {
+    "outputs/review/article_parameter_sensitivity.csv": "f3f59c44f8a6862cb85851f20340023469e491c580dd61dbf25ca663f0913df7",
+    "outputs/review/article_period_comparison.csv": "a3b166f87f407cfcc6b028257ef1299abffedd67cb091eb44230a013035ea27b",
+    "outputs/review/performance_path_daily.parquet": "3de401d24d06edb8b46caaefe2f68c1b48a17ab7e0e6340b7ae2476d4dce5923",
+    "outputs/review/rho_ladder_summary.csv": "a5d8a7ccbce968139cf5471bc9f664b0acf4a80e1a4e72827694e7a3d3a96ee7",
+    "outputs/review/rolling_realised_beta_252d.csv": "49e705747cfea6bca5bb40938104eece5076c9b7e4961868d83bb16327e57df5",
+    "outputs/review/timing/timing_daily.parquet": "4ffc433d583c9045642cf3bafdc8278c81af6dc6d72f3b9f5789ad3a863b1f28",
+    "outputs/review/timing/timing_metrics.csv": "e69c30c9d422b95cc45e255c44f38a3ab0e6d038e28fb3b3b279278cfc556349",
+    "portfolio_optimization/__init__.py": "1f1ec7900a2126ae4f3d43328850597dda5f78cb4dcc19888ab389820d72968f",
+    "portfolio_optimization/parameter_sensitivity_figure.py": "7ac44fe99938ac6eb842b6efb57dc7525d333b278aca2d828844d4a1ad731fa8",
+    "portfolio_optimization/performance_figure.py": "65dee8cd35a7b588dec611930f676ef7016384f70fc1d71365cd74d57e0394cd",
+    "portfolio_optimization/rebalance_timing.py": "74dd125810ced506a4b053434cb926c64156aa73fb347c6a794c6a61a51c9163",
+    "portfolio_optimization/rho_ladder_figure.py": "0c4cba5355b6b2fdd187c57db38114e01f2253c495eeffd170648d81fe31c5ba",
+    "portfolio_optimization/risk_calibration_figure.py": "a7c9ef9115cbf2bb8a2beaf5f502b841a69e25ac6dec8ce817661cd20deff421",
+    "portfolio_optimization/svg_primitives.py": "61c03d85031309e9c105addfab757aa0dddf2c70876d0d12372297c3b7b76ba7",
+    "sample_scaled_ridge.py": "89301e4f130fa35e5b3967d7d1832dda7d52b39e31645066d84649c4a4670aae",
+    "tests/test_parameter_sensitivity_figure.py": "d0b0fc9e5f1c26b88de520710a00b6cbdfc71253a0b80f0837c1fb588b3a6875",
+    "tests/test_rebalance_timing.py": "58c3c26838b7e69193ff339a1e521dbe4a39b8ca4ecf26c3aeacacf92022aa9a",
+    "tests/test_rho_ladder_figure.py": "597b78c9bf2b657eb6903d69b496e903682b3aef6d34dd37e7ccafcb02d898dd",
+    "tests/test_risk_calibration_figure.py": "8cd417e96932d6867624d90036576599545299616af5ce0439a0e32d441570eb",
+    "tests/test_sample_scaled_ridge.py": "13b6d8cc9a39a0dd492690ac8eb141fa0bf53e33428c0dd68860303ed31270d1",
+    "tests/test_svg_primitives.py": "61dcabb2826407fad824f8966af7f177193aa79b8367a9fae9b84aeb788809db"
+  }
+}
