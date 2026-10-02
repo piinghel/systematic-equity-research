@@ -1,6 +1,6 @@
 # Systematic equity research
 
-Code for [Ridge and stock rankings](https://piinghel.github.io/quants/2025/02/09/multiple-linear-regression.html)
+Code for [Combining Multiple Predictors: The Linear Case](https://piinghel.github.io/quants/combining-predictors.html)
 and an index of the related research repositories.
 
 ## Research repositories
